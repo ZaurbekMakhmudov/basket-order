@@ -1,0 +1,289 @@
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices/configuration.html#application-related-configuration
+parameters:
+    cashbox_shop: '%env(cashbox_shop)%'
+    base_url: '%env(communicator_base_url)%'
+    auth_token: '%env(communicator_auth_token)%'
+    web_platform.in_gateway.communicator.base_url: '%base_url%'
+    web_platform.in_gateway.communicator.auth_token: '%auth_token%'
+    logfileOrder: 'info_order'
+    logfileBasket: 'info_basket'
+    costDeliveryExcludedDiscountCodes: '%env(costDeliveryExcludedDiscountCodes)%'
+    smm_token: '%env(SMM_TOKEN)%'
+    dc_confirm_enabled: '%env(DC_CONFIRM_ENABLED)%'
+    amqp_connection: '%env(ENQUEUE_DSN)%'
+
+services:
+    _defaults:
+        autowire: true      # Automatically injects dependencies in your services.
+        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        bind:
+            $cashboxShop: '%cashbox_shop%'
+            $kernelProjectFolder: '%kernel.project_dir%'
+            $logger: '@monolog.logger.main'
+
+    sensio_framework_extra.view.listener:
+        alias: Sensio\Bundle\FrameworkExtraBundle\EventListener\TemplateListener
+
+    App\BasketOrderBundle\Controller\ConsulController:
+        tags: [ 'controller.service_arguments' ]
+        bind:
+            $consulURL: '%env(SD_URL)%'
+            $consulToken: '%env(SD_TOKEN)%'
+            $service: '%env(SERVICE_CONFIG)%'
+
+    App\BasketOrderBundle\Controller\BaseController:
+        tags: [ 'controller.service_arguments' ]
+        calls:
+            - [ setVars, [ '@log.service' ] ]
+
+    App\BasketOrderBundle\Controller\UserController:
+        tags: ['controller.service_arguments']
+        calls:
+          - [setVars, ['@log.service']]
+    App\BasketOrderBundle\Controller\OrderController:
+        tags: ['controller.service_arguments']
+        calls:
+            - [setInGatewayCommunicator, ["@web_platform.in_gateway.communicator"]]
+            - [setVars, [ '@log.service' ]]
+            - [setLogfileName, ["%logfileOrder%"]]
+            - [setSemaphore, ['@semaphore.locker.bundle', '@semaphore.locker.bundle.storage']]
+    App\BasketOrderBundle\Controller\BasketController:
+        tags: ['controller.service_arguments']
+        calls:
+            - [setInGatewayCommunicator, ["@web_platform.in_gateway.communicator"]]
+            - [setVars, [ '@log.service' ]]
+            - [setLogfileName, ["%logfileBasket%"]]
+            - [setSemaphore, ['@semaphore.locker.bundle', '@semaphore.locker.bundle.storage']]
+    App\BasketOrderBundle\Controller\V2BasketController:
+        tags: ['controller.service_arguments']
+        calls:
+            - [setInGatewayCommunicator, ["@web_platform.in_gateway.communicator"]]
+            - [setVars, [ '@log.service' ]]
+            - [setLogfileName, ["%logfileBasket%"]]
+            - [setSemaphore, ['@semaphore.locker.bundle', '@semaphore.locker.bundle.storage']]
+    App\BasketOrderBundle\Controller\OrderAdminController:
+        tags: ['controller.service_arguments']
+        calls:
+            - [setVars, [ '@log.service' ]]
+            - [setInGatewayCommunicator, ["@web_platform.in_gateway.communicator"]]
+            - [setLogfileName, ["%logfileOrder%"]]
+    App\BasketOrderBundle\Controller\BasketAdminController:
+        tags: ['controller.service_arguments']
+        calls:
+            - [setVars, [ '@log.service' ]]
+            - [setInGatewayCommunicator, ["@web_platform.in_gateway.communicator"]]
+            - [setLogfileName, ["%logfileBasket%"]]
+    App\BasketOrderBundle\Controller\DeliveryClubController:
+        tags: ['controller.service_arguments']
+        calls:
+            - [setVars, [ '@log.service' ]]
+    App\BasketOrderBundle\Controller\SMMController:
+        tags: [ 'controller.service_arguments' ]
+        calls:
+            - [setVars, [ '@log.service' ]]
+    App\BasketOrderBundle\Controller\SberMarketController:
+        tags: [ 'controller.service_arguments' ]
+        calls:
+            - [ setVars, [ '@log.service' ] ]
+
+    App\BasketOrderBundle\Command\OrdersReceiveCommand:
+        tags:
+            - { name: 'console.command', command: 'order:orders_receive' }
+        calls:
+            - [setInGatewayCommunicator, ["@web_platform.in_gateway.communicator"]]
+    App\BasketOrderBundle\Command\EOrdersReceiveCommand:
+        tags:
+            - { name: 'console.command', command: 'order:e_orders_receive' }
+    App\BasketOrderBundle\Command\CacheClearAccountCommand:
+        tags:
+            - { name: 'console.command', command: 'cacheclearaccount' }
+    App\BasketOrderBundle\Command\DelayDeleteCommand:
+        tags:
+            - { name: 'console.command', command: 'delay:delete' }
+
+    App\BasketOrderBundle\Command\DeactivateAbandonedBasketsCommand:
+        tags:
+            - { name: 'console.command', command: 'baskets:deactivate' }
+        calls:
+            - [ setVars, [ '@doctrine.orm.default_entity_manager', '@semaphore.locker.bundle', '@semaphore.locker.bundle.storage' ] ]
+
+    App\BasketOrderBundle\Service\BasketService:
+        calls:
+            - [setCostDeliveryExcludedDiscountCodes, ['%env(json:costDeliveryExcludedDiscountCodes)%']]
+            - [setVars,['@service_container','@shop.mailer','@message.controller','%env(json:event_params)%', '@log.service']]
+            - [setCashboxVars,['%env(json:cashbox_re_send_cases)%']]
+    App\BasketOrderBundle\Service\OrderService:
+        public: true
+        calls:
+            - [setCostDeliveryExcludedDiscountCodes, ['%env(json:costDeliveryExcludedDiscountCodes)%']]
+            - [setVars,['@service_container','@shop.mailer','@message.controller','%env(json:event_params)%', '@log.service']]
+            - [setCashboxVars,['%env(json:cashbox_re_send_cases)%']]
+
+    App\BasketOrderBundle\Service\TokenService:
+        arguments:
+            $redisUrl: '%env(REDIS_URL)%'
+
+    App\BasketOrderBundle\Service\BaseService:
+        bind:
+            $cashbox: '@App\CashboxBundle\Service\Cashbox\CashboxService'
+        calls:
+            - [setVars,['@service_container','@shop.mailer','@message.controller','%env(json:event_params)%', '@log.service']]
+            - [setCashboxVars,['%env(json:cashbox_re_send_cases)%']]
+    App\BasketOrderBundle\Service\ItemService:
+        calls:
+            - [setVars,['@service_container','@shop.mailer','@message.controller','%env(json:event_params)%', '@log.service']]
+            - [setCashboxVars,['%env(json:cashbox_re_send_cases)%']]
+
+    App\BasketOrderBundle\Service\DelayService:
+
+    App\BasketOrderBundle\Service\DeliveryClubService:
+
+    App\BasketOrderBundle\Service\SMMService:
+        public: true
+        calls:
+            - [setVars,['@message.controller', '@log.service', '%env(json:event_params)%']]
+
+    App\BasketOrderBundle\Service\SberMarketService:
+        calls:
+            - [ setVars,[ '@doctrine.orm.default_entity_manager', '@App\BasketOrderBundle\Service\OrderService' ] ]
+
+    log.service:
+        class: App\BasketOrderBundle\Service\LogService
+        calls:
+            - [setVars, ['@monolog.logger.main']]
+
+    App\BasketOrderBundle\Security\ApiKeyAuthenticatorMemory:
+
+    App\BasketOrderBundle\Security\BearerAuthenticatorMemory:
+
+    App\BasketOrderBundle\Security\BasicAuthenticatorMemory:
+
+    App\BasketOrderBundle\Repository\BasketRepository:
+        tags: ['doctrine.repository_service']
+    App\BasketOrderBundle\Repository\OrderRepository:
+        tags: ['doctrine.repository_service']
+    App\BasketOrderBundle\Repository\OrderHistoryRepository:
+        tags: ['doctrine.repository_service']
+    App\BasketOrderBundle\Repository\ItemRepository:
+        tags: ['doctrine.repository_service']
+    App\BasketOrderBundle\Repository\EshopOrderRepository:
+        tags: ['doctrine.repository_service']
+    App\BasketOrderBundle\Repository\EshopOrderPositionRepository:
+        tags: ['doctrine.repository_service']
+    App\BasketOrderBundle\Repository\DelayRepository:
+        tags: ['doctrine.repository_service']
+    App\BasketOrderBundle\Repository\PartnerPropertyRepository:
+        tags: ['doctrine.repository_service']
+    App\BasketOrderBundle\Repository\PartnerOrderDataRepository:
+        tags: [ 'doctrine.repository_service']
+    App\BasketOrderBundle\Repository\PartnerItemDataRepository:
+        tags: [ 'doctrine.repository_service' ]
+    App\BasketOrderBundle\Repository\PartnerRepository:
+        tags: [ 'doctrine.repository_service']
+    App\BasketOrderBundle\Repository\PartnerPropertyTypeRepository:
+        tags: [ 'doctrine.repository_service']
+    App\BasketOrderBundle\Repository\CouponRepository:
+        tags: [ 'doctrine.repository_service' ]
+    App\BasketOrderBundle\Repository\CouponUserRepository:
+        tags: [ 'doctrine.repository_service' ]
+    App\BasketOrderBundle\Repository\CouponRestrictionRepository:
+        tags: [ 'doctrine.repository_service' ]
+    App\BasketOrderBundle\Repository\OrderRequestRepository:
+        tags: [ 'doctrine.repository_service' ]
+
+    semaphore.locker.bundle:
+        class: App\SemaphoreBundle\SemaphoreLocker
+        calls:
+            - [ setSemaphore, [ "@avtonom_semaphore.manager" ] ]
+
+    avtonom_semaphore.manager:
+        class: Avtonom\SemaphoreBundle\Model\SemaphoreManager
+        arguments:
+            - "@avtonom_semaphore.adapter.redis"
+            - "@avtonom_semaphore.key_storage"
+            - 240
+            - 500000
+            - 60
+            - true
+            - true
+            - 'lock_'
+            - "@avtonom_semaphore.logger"
+            - null
+
+    semaphore.locker.bundle.storage:
+        class: App\SemaphoreBundle\SemaphoreKeyStorage
+
+    avtonom_semaphore.logger_handler:
+        public: false
+        class: Monolog\Handler\RotatingFileHandler
+        arguments: [ "%kernel.logs_dir%/semaphore/%kernel.environment%.semaphore.log", 30 ]
+
+    api.version_listener:
+        class: App\BasketOrderBundle\EventListener\VersionListener
+        tags:
+            - { name: kernel.event_listener, event: kernel.request, priority: 30 }
+
+    cashbox.listener:
+        public: true
+        class: App\BasketOrderBundle\EventListener\CashboxListener
+        arguments:
+            $logger: '@monolog.logger'
+            $communicator: "@web_platform.in_gateway.communicator"
+        tags:
+            - { 'name': kernel.event_listener, event: 'cashbox.save', method: 'processReceiptOnline', priority: 1024}
+
+    queue.service:
+        public: true
+        class: App\BasketOrderBundle\Service\QueueService
+
+    App\BasketOrderBundle\Processor\CouponProcessor:
+        tags:
+            - { name: 'enqueue.command_subscriber', client: 'couponimport' }
+        arguments:
+            $queueService: '@queue.service'
+
+    App\BasketOrderBundle\Command\CouponImportCommand:
+        arguments:
+            - '@enqueue.locator'
+            - '%enqueue.default_client%'
+            - 'enqueue.client.%s.queue_consumer'
+            - 'enqueue.client.%s.driver'
+            - 'enqueue.client.%s.delegate_processor'
+        tags:
+            - { name: 'console.command', command: 'coupon:import' }
+
+    App\BasketOrderBundle\Command\SetupBrokerCommand:
+        tags:
+            - { name: 'console.command', command: 'setup:broker' }
+
+    App\BasketOrderBundle\Command\SyncWithRMCommand:
+        tags:
+            - { name: 'console.command', command: 'order:sync_rm' }
+        calls:
+            - [ setVars,[ '@rm.mailer' ] ]
+
+    App\BasketOrderBundle\EventListener\KernelRequestListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.request }
+    App\BasketOrderBundle\EventListener\KernelControllerListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.controller }
+    App\BasketOrderBundle\EventListener\KernelResponseListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.response }
+    App\BasketOrderBundle\EventListener\OrderLogListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.response }
+        arguments:
+            - '@doctrine.orm.default_entity_manager'
+    App\BasketOrderBundle\EventListener\KernelTerminateListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.terminate }
+
+    Monolog\Processor\UidProcessor:
+        tags:
+            - { name: monolog.processor, handler: main }

@@ -1,0 +1,37 @@
+<p> Ошибка: {{ reason }}</p>
+<p> Заказ: {{ orderId }}</p>
+<table border="1" width="100%" callpadding="0" cellspacing="0">
+    <tr>
+        <td width="20%">
+
+        </td>
+        <td width="40%">
+            <p>Данные из запроса</p>
+        </td>
+        <td width="40%">
+            <p>Данные из ответа кассы</p>
+        </td>
+    </tr>
+    <tr>
+        <td valign="top">
+            Сумма
+        </td>
+        <td valign="top">
+            <pre>{{ costOrder }}</pre>
+        </td>
+        <td valign="top">
+            <pre>{{ costCashBox }}</pre>
+        </td>
+    </tr>
+    <tr>
+        <td valign="top">
+            Детальная информация
+        </td>
+        <td valign="top">
+            <pre>{{ orderDataIn }}</pre>
+        </td>
+        <td valign="top">
+            <pre>{{ orderDataCashbox }}</pre>
+        </td>
+    </tr>
+</table>

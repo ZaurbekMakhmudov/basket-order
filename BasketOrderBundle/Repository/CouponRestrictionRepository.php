@@ -1,0 +1,50 @@
+<?php
+
+namespace App\BasketOrderBundle\Repository;
+
+use App\BasketOrderBundle\Entity\CouponRestriction;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+
+/**
+ * @method CouponRestriction|null find($id, $lockMode = null, $lockVersion = null)
+ * @method CouponRestriction|null findOneBy(array $criteria, array $orderBy = null)
+ * @method CouponRestriction[]    findAll()
+ * @method CouponRestriction[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ */
+class CouponRestrictionRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, CouponRestriction::class);
+    }
+
+    // /**
+    //  * @return CouponRestriction[] Returns an array of CouponRestriction objects
+    //  */
+    /*
+    public function findByExampleField($value)
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.exampleField = :val')
+            ->setParameter('val', $value)
+            ->orderBy('c.id', 'ASC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+    */
+
+    /*
+    public function findOneBySomeField($value): ?CouponRestriction
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.exampleField = :val')
+            ->setParameter('val', $value)
+            ->getQuery()
+            ->getOneOrNullResult()
+        ;
+    }
+    */
+}

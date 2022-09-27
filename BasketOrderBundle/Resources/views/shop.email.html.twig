@@ -1,0 +1,9 @@
+<p> Код ответа: {{ response_content.code }} </p>
+<p> Сообщение ответа: {{ response_content.message }} </p>
+<p> Дополнительная информация: </p>
+{% for additional_info in response_additional_info  %}
+    <p> - {{ additional_info }}</p>
+{% endfor %}
+<p> Запрос : {{ request_method }} {{ request_string }}</p>
+<p> Тело запроса : {{ request_content }}</p>
+<p> Время получения ошибки: {{ time }} ‎UTC </p>
